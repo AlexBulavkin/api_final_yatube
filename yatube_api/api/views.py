@@ -1,11 +1,16 @@
 from django.shortcuts import get_object_or_404
 
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, mixins, filters
 from rest_framework.exceptions import PermissionDenied
 
 from posts.models import Comment, Group, Follow, Post
 from .serializers import (
     CommentSerializer, GroupSerializer, FollowSerializer, PostSerializer)
+
+
+class CreateListViewSet(mixins.CreateModelMixin, mixins.ListModelMixin,
+                        viewsets.GenericViewSet):
+    pass
 
 
 class PostViewSet(viewsets.ModelViewSet):
@@ -56,10 +61,15 @@ class CommentViewSet(viewsets.ModelViewSet):
         super().perform_destroy(instance)
 
 
-class FollowViewSet(viewsets.ModelViewSet):
+class FollowViewSet(CreateListViewSet):
     serializer_class = FollowSerializer
     queryset = Follow.objects.all()
     permission_classes = (permissions.IsAuthenticated,)
+    filter_backends = (filters.SearchFilter,)
+    search_fields = ('user__username', 'following__username')
+
+    def get_queryset(self):
+        return Follow.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
